@@ -6,7 +6,7 @@ This is a beginner-level tutorial - though it's helpful to be familiar with read
 
 ## Setup
 
-You'll need a nightly Rust compiler.  See [rustup](https://rustup.rs/) to get started if you need.  You'll also need [`cargo-web`](https://github.com/koute/cargo-web).  Once you have that installed, navigate to your project directory and issue `cargo new hunt-the-wumpus` at the terminal.  Open that folder in the text editor of your choice.  We're going to start by adding the basic outline of the app and build pipeline - enough to get everything compiling and running.
+You'll need a nightly Rust compiler.  See [rustup](https://rustup.rs/) to get started if you need.  You'll also need [`cargo-web`](https://github.com/koute/cargo-web): `cargo install cargo-web`.  Once you have that installed, navigate to your project directory and issue `cargo new hunt-the-wumpus` at the terminal.  Open that folder in the text editor of your choice.  We're going to start by adding the basic outline of the app and build pipeline - enough to get everything compiling and running.
 
 First thing's first - we want to use the built-in Rust target.  Issue the following commands:
 
@@ -15,9 +15,9 @@ $ rustup override set nightly
 $ echo 'default-target = "wasm32-unknown-unknown"' > Web.toml
 ```
 
-This will ensure the `cargo web` command always uses the proper target.
+This will ensure the `cargo web` command always uses the proper target.  The `override` command is directory-specific - to change it globally use `rustup default nightly`. I prefer to default to stable and only use nightly when necessary - like for the `wasm32-unknown-unknown` target.
 
-Make your `Cargo.toml` look like the following:
+Now make your `Cargo.toml` look like the following:
 
 ```toml
 [package]
@@ -32,7 +32,7 @@ stdweb = "0.4"
 yew = { git = "https://github.com/DenisKolodin/yew" }
 ```
 
-MNost of our code is going to live in a libarary, and the binary is just going to mount the app to the page.
+Most of our code is going to live in a library and the binary is just going to mount the app to the page.
 
 Next replace your `main.rs` with the following:
 
@@ -71,7 +71,7 @@ We also just need a stub here.  Add the following to that file and save it:
   <meta name="description" content="Hunt the wumpus!">
   <meta name="author" content="YOU">
   <title>HUNT THE WUMPUS</title>
-  <link rel="stylesheet" type="text/css" href="impact.css">
+  <link rel="stylesheet" type="text/css" href="hunt.css">
   <script src="hunt.js"></script>
 </head>
 
@@ -81,7 +81,7 @@ We also just need a stub here.  Add the following to that file and save it:
 </html>
 ```
 
-We won't need that again.  This directory is where your favicon will go as well - I like [this one](https://www.favicon.cc/?action=icon&file_id=701981).
+We won't need that again - it just loads `hunt.js`.  This `static` directory is where your favicon will go as well - I like [this one](https://www.favicon.cc/?action=icon&file_id=701981).
 
 Now, let's add the basic Yew outline - the thing we're going to render.  Issue:
 
@@ -121,8 +121,8 @@ impl Component for Model {
 impl Renderable<Model> for Model {
   fn view(&self) -> Html<Self> {
     html! {
-        <div class="impact",>
-            <div class="header",>{"IMPACT"}</div>
+        <div class="hunt",>
+            <div class="header",>{"Hunt the Wumpus"}</div>
             <div class="body",>
               <span class="arrows",>{&format!("Arrows: {}", self.arrows)}</span>
             </div>
@@ -134,6 +134,8 @@ impl Renderable<Model> for Model {
   }
 }
 ```
+
+This is what most of our components are going to look like.  This should look somewhat familiar if you've used other frontend frameworks.  When the app is initialized we will `create` this component with the given `Model`, and Yew provides the `Renderable` trait and a JSX-like `html!` macro for defining the view.  It then draws inspiration from tools like Elm to provide a `Msg` type which will drive our events in the `update` method.  To start, `update` will always return `true`, triggering a redraw.
 
 Before we get to coding, we need to set up the rest of the build pipeline.  We're going to use [`yarn`](https://yarnpkg.com/en/) - it's a web app, after all.
 
@@ -190,6 +192,8 @@ $ yarn watch:rs
 
 Finally, point your browser to `localhost:8000`.  You should see the following:
 
-SCREENSHOT
+**Hunt the Wumpus**
+Arrows: 5
+[source](https://github.com/deciduously/hunt-the-wumpus)
 
 We're up and running!
