@@ -196,4 +196,166 @@ Finally, point your browser to `localhost:8000`.  You should see the following:
 Arrows: 5
 [source](https://github.com/deciduously/hunt-the-wumpus)
 
-We're up and running!
+We're up and running!  Let's top off our `.gitignore`:
+
+```
+/target
+**/*.rs.bk
+/node_modules
+yarn-*.log
+/css
+/static/*.css
+```
+
+Now, commit!  `git init && git commit -m "Initial commit`.
+
+## **PART 2**
+
+In the first part, we set up our development environment and ensured we can compile and run our webapp.  If you haven't done so, now's a good time to give it a look.
+
+Now we can start modelling the logic.  First thing's first - let's define the cave.  The traditional game is played in a cave where each room is a vertex of a regular dodecahedron.  From each room, we are connected to exactly three other rooms.
+
+We'll use a function to map room IDs to exits.  Place the following in `lib.rs`, above your `Model` declaration:
+
+```rust
+fn room_exits(id: u8) -> Option<[u8; 3]> {
+  match id {
+    1 => Some([2, 5, 8]),
+    2 => Some([1, 3, 10]),
+    3 => Some([2, 4, 12]),
+    4 => Some([3, 5, 14]),
+    5 => Some([1, 4, 6]),
+    6 => Some([5, 7, 15]),
+    7 => Some([6, 8, 17]),
+    8 => Some([1, 7, 11]),
+    9 => Some([10, 12, 19]),
+    10 => Some([2, 9, 11]),
+    11 => Some([8, 10, 20]),
+    12 => Some([3, 9, 13]),
+    13 => Some([12, 14, 18]),
+    14 => Some([4, 13, 15]),
+    15 => Some([6, 14, 16]),
+    16 => Some([15, 17, 18]),
+    17 => Some([7, 16, 20]),
+    18 => Some([13, 16, 19]),
+    19 => Some([9, 18, 20]),
+    20 => Some([11, 17, 19]),
+    _ => None
+  }
+}
+```
+
+Yes, this was relatively annoying to make.  You're welcome.
+
+Let's store the player's current location in the `Model`:
+
+```rust
+pub struct Model {
+  arrows: u8,
+  current_room: u8,
+}
+```
+
+Don't forget to add it to our initial model too:
+
+```rust
+  fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    Model {
+      arrows: 5,
+      current_room: 1,
+    }
+  }
+```
+
+Now we can start adding to our UI.  We'll make a new component that will be responsible for rendering the controls.  I like keeping all of these in a folder:
+
+```
+$ mkdir src/components
+$ touch src/components/controls.rs
+```
+
+We'll start with a basrebones component:
+
+```rust
+use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
+
+pub struct Controls {
+    title: String,
+    exits: [u8; 3],
+}
+
+pub enum Msg {}
+
+#[derive(PartialEq, Clone)]
+pub struct Props {
+    pub exits: [u8; 3],
+}
+
+impl Default for Props {
+    fn default() -> Self {
+        Self { exits: [0, 0, 0] }
+    }
+}
+
+impl Component for Controls {
+    type Message = Msg;
+    type Properties = Props;
+
+    fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
+        Controls {
+            title: "Controls".into(),
+            exits: props.exits,
+        }
+    }
+
+    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
+        true
+    }
+}
+
+impl Renderable<Controls> for Controls {
+    fn view(&self) -> Html<Self> {
+        html! {
+            <div class=("container", "container-controls"),>
+                <div class="title",>{&self.title}</div>
+                <div class="exits",>{format!("exits: {}, {}, {}", self.exits[0], self.exits[1], self.exits[2])}</div>
+            </div>
+        }
+    }
+}
+```
+
+Unlike our top-level component, this one accepts some props - we're going to pass in the exits to the room our player is in.  A couple of "gotchas" - take a look at the `html!` macro in the `Renderable` impl block.  We're attaching two classes to the top-level `div` - to do so, you need to wrap them up in a tuple like shown.  Also, if you're using an attribute in your tag, you need to include that trailing comma for the macro to work.  If you don't, you might end up with a very dense error message - check for these commas before panicking.  Rust macros don't necessarily yeild themselves towards useful error info - one major drawback of the tech at this point in time.
+
+Also of not - we *must* provide a `Default` impl for our `Props`.  I'm just setting it to `[0, 0, 0]`.
+
+Let's position it within our larger app.  First, we have to organize our component module:
+
+```
+$ echo 'pub mod controls;' > src/components/mod.rs
+```
+
+When we add new components, don't forget to add the declaration to this file.  Back up in `lib.rs`, add the module directly after your `extern crate` declarations and bring it into scope:
+
+```rust
+mod components;
+
+use components::controls::Controls;
+```
+
+Now we can attach it to the app.  Down in the `html!` macro, let's add the component right below our `<span>` element displaying the arrows:
+
+```rust
+<div class="body",>
+  <span class="arrows",>{&format!("Arrows: {}", self.arrows)}</span>
+  <Controls: exits=room_exits(self.current_room).unwrap(),/>
+</div>
+```
+
+Once the rebuild completes, go back to your browser and confirm you see:
+
+**Hunt the Wumpus**
+Arrows: 5
+Controls
+exits: 2, 5, 8
+[source](https://github.com/deciduously/hunt-the-wumpus)
