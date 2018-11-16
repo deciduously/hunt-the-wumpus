@@ -1,0 +1,18 @@
+[package]
+name = "hunt-the-wumpus"
+version = "0.1.0"
+authors = ["deciduously <ben@deciduously.com>"]
+edition = "2018"
+
+[[bin]]
+name = "hunt"
+path = "src/main.rs"
+
+[lib]
+name = "hunt_the_wumpus"
+path = "src/lib.rs"
+
+[dependencies]
+
+stdweb = "0.4"
+yew = { git = "https://github.com/DenisKolodin/yew" }
