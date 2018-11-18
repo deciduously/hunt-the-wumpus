@@ -399,8 +399,9 @@ Replace `scss/hunt.scss` with the following:
   .window {
     display: flex;
     flex-direction: row;
+  }
 
-    .container {
+  .container {
       border: solid 1px #000;
       display: flex;
       flex-direction: column;
@@ -414,19 +415,26 @@ Replace `scss/hunt.scss` with the following:
           text-align: center;
       }
     
-      .container-stats {
-        flex: 0 0 256px;
-        order: 0;
-      
-        .stat {
-          font-style: italic;
-        }
+      >.scroller {
+          overflow: auto;
       }
-    
-      .container-control {
-        flex: 0 0 256px;
-        order: 1;
-      }
+  }
+
+  .container-stats {
+    flex: 0 0 256px;
+    order: 0;
+  
+    .stat {
+      font-style: italic;
+    }
+  }
+
+  .container-control {
+    flex: 0 0 256px;
+    order: 1;
+
+    .control-button {
+      flex: 1;
     }
   }
 }
@@ -624,7 +632,7 @@ impl Renderable<Controls> for Controls {
             let t = *target;
             html! {
                 <span class="control-button",>
-                    <button onclick=|_| Msg::ButtonPressed(SwitchRoom(t)),>{&format!("Move to room {}", target)}</button>
+                    <button onclick=|_| Msg::ButtonPressed(SwitchRoom(t)),>{&format!("Move to {}", target)}</button>
                 </span>
             }
         };
@@ -685,6 +693,200 @@ Then `stats.rs`:
   }
 ```
 
-Now make sure your `yarn watch:rs` watcher is running and open up `localhost:8000`.  You should be able to use the buttons to "explore" the maze.
+Now make sure your `yarn watch:rs` watcher is running and open up `localhost:8000`.  You should be able to use the buttons to "explore" the maze.  To keep track of where we've been, let's display a running history for the player.
 
-Our cave isn't terribly interesting, though - we could definitely spice it up a bit.  There's some low-hanging fruit, here - there's gotta be a wumpus to hunt!
+First, we'll add a field to our toplevel state in `lib.rs`:
+
+```rust
+pub struct Model {
+  arrows: u8,
+  current_room: u8,
+  messages: Vec<String>,
+}
+
+impl Component for Model {
+   // ..
+    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    Model {
+      arrows: 5,
+      current_room: 1,
+      messages: Vec::new(),
+    }
+  }
+  // ..
+}
+```
+
+We'll add a new component in a new file `src/components/messages.rs`:
+
+```rust
+use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
+
+pub struct Messages {
+  title: String,
+  messages: Vec<String>,
+}
+
+pub enum Msg {}
+
+#[derive(PartialEq, Clone)]
+pub struct Props {
+  pub messages: Vec<String>,
+}
+
+impl Default for Props {
+  fn default() -> Self {
+    Props {
+      messages: Vec::new(),
+    }
+  }
+}
+
+impl Component for Messages {
+  type Message = Msg;
+  type Properties = Props;
+
+  fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
+    Messages {
+      title: "Messages".into(),
+      messages: props.messages,
+    }
+  }
+
+  fn update(&mut self, _msg: Self::Message) -> ShouldRender {
+    true
+  }
+
+  fn change(&mut self, props: Self::Properties) -> ShouldRender {
+    self.messages = props.messages;
+    true
+  }
+}
+
+impl Renderable<Messages> for Messages {
+  fn view(&self) -> Html<Self> {
+    let view_message = |message: &String| {
+      html! {
+          <li>{message}</li>
+      }
+    };
+    html! {
+        <div class=("container", "container-messages"),>
+            <div class="title",>{&self.title}</div>
+            <div class="scroller",>
+                <ul>{ for self.messages.iter().rev().map(view_message) }</ul>
+            </div>
+        </div>
+    }
+  }
+}
+
+```
+
+Don't forget to add it to `src/components/mod.rs`:
+
+```rust
+pub mod controls;
+pub mod messages;
+pub mod stats;
+```
+
+And add it to `lib.rs`:
+
+```rust
+use self::components::{controls::Controls, messages::Messages, stats::Stats};
+
+// ..
+
+impl Renderable<Model> for Model {
+  fn view(&self) -> Html<Self> {
+    html! {
+        <div class="hunt",>
+            <div class="header",>{"Hunt the Wumpus"}</div>
+            <div class="window",>
+              <Stats: arrows=self.arrows, current_room=self.current_room,/>
+              <Controls: exits=room_exits(self.current_room).unwrap(), onsignal=|msg| msg,/>
+            </div>
+            <Messages: messages=&self.messages,/> // add it down here
+        </div>
+    }
+  }
+}
+```
+
+Now let's add a little style in `scss/hunt.scss`.  Add the followng below the `>.title` block inside the `.container` block:
+
+```scss
+      >.scroller {
+          overflow: auto;
+      }
+```
+
+and then add right at the end:
+
+```scss
+.hunt {
+// ..
+  .container-messages {
+    flex: 0 0 192px;
+    
+    ul {
+      list-style-type: none;
+    }
+  }
+}
+```
+
+Now let's add some!  First, we need an action for it:
+
+```rust
+
+```
+
+let's welcome the player to their likely doom when the game initiates in `lib.rs`:
+
+```rust
+fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+  let mut ret = Model {
+    arrows: 5,
+    current_room: 1,
+    messages: Vec::new(),
+  };
+  ret.messages.push(
+    "You've entered a clammy, dark cave, armed with 5 arrows.  You are very hungry.".to_string(),
+  );
+  ret
+}
+```
+
+We'll also log each move:
+
+```rust
+  fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    match msg {
+      Msg::SwitchRoom(target) => {
+        self.current_room = target;
+        self.messages.push(format!("Moved to room {}", target));
+        true
+      }
+    }
+  }
+```
+
+**SCREENSHOT**
+
+Nifty!  Join me in Part 4 for some peril.
+
+**PART 4** - THE DANGER
+
+Our cave isn't terribly interesting.  There's some low-hanging fruit, here - there's gotta be a wumpus to hunt!
+
+Open up `src/lib.rs` and add one to our `Model`:
+
+```rust
+
+```
+
+-- PIT
+
+-- BATS

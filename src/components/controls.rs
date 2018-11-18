@@ -62,7 +62,7 @@ impl Renderable<Controls> for Controls {
             let t = *target;
             html! {
                 <span class="control-button",>
-                    <button onclick=|_| Msg::ButtonPressed(SwitchRoom(t)),>{&format!("Move to room {}", target)}</button>
+                    <button onclick=|_| Msg::ButtonPressed(SwitchRoom(t)),>{&format!("Move to {}", target)}</button>
                 </span>
             }
         };

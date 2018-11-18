@@ -4,7 +4,7 @@ extern crate yew;
 
 mod components;
 
-use self::components::{controls::Controls, stats::Stats};
+use self::components::{controls::Controls, messages::Messages, stats::Stats};
 
 use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
 
@@ -38,6 +38,7 @@ fn room_exits(id: u8) -> Option<[u8; 3]> {
 pub struct Model {
   arrows: u8,
   current_room: u8,
+  messages: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -50,16 +51,22 @@ impl Component for Model {
   type Properties = ();
 
   fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
-    Model {
+    let mut ret = Model {
       arrows: 5,
       current_room: 1,
-    }
+      messages: Vec::new(),
+    };
+    ret.messages.push(
+      "You've entered a clammy, dark cave, armed with 5 arrows.  You are very cold.".to_string(),
+    );
+    ret
   }
 
   fn update(&mut self, msg: Self::Message) -> ShouldRender {
     match msg {
       Msg::SwitchRoom(target) => {
         self.current_room = target;
+        self.messages.push(format!("Moved to room {}", target));
         true
       }
     }
@@ -75,6 +82,7 @@ impl Renderable<Model> for Model {
               <Stats: arrows=self.arrows, current_room=self.current_room,/>
               <Controls: exits=room_exits(self.current_room).unwrap(), onsignal=|msg| msg,/>
             </div>
+            <Messages: messages=&self.messages,/>
         </div>
     }
   }
