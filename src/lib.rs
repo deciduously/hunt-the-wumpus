@@ -41,7 +41,9 @@ pub struct Model {
 }
 
 #[derive(Debug, Clone)]
-pub enum Msg {}
+pub enum Msg {
+  SwitchRoom(u8),
+}
 
 impl Component for Model {
   type Message = Msg;
@@ -54,8 +56,13 @@ impl Component for Model {
     }
   }
 
-  fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-    true
+  fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    match msg {
+      Msg::SwitchRoom(target) => {
+        self.current_room = target;
+        true
+      }
+    }
   }
 }
 
@@ -66,7 +73,7 @@ impl Renderable<Model> for Model {
             <div class="header",>{"Hunt the Wumpus"}</div>
             <div class="window",>
               <Stats: arrows=self.arrows, current_room=self.current_room,/>
-              <Controls: exits=room_exits(self.current_room).unwrap(),/>
+              <Controls: exits=room_exits(self.current_room).unwrap(), onsignal=|msg| msg,/>
             </div>
         </div>
     }

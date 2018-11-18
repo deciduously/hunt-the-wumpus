@@ -38,6 +38,12 @@ impl Component for Stats {
   fn update(&mut self, _msg: Self::Message) -> ShouldRender {
     true
   }
+
+  fn change(&mut self, props: Self::Properties) -> ShouldRender {
+    self.arrows = props.arrows;
+    self.current_room = props.current_room;
+    true
+  }
 }
 
 impl Renderable<Stats> for Stats {

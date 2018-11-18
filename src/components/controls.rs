@@ -1,20 +1,27 @@
-use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::prelude::{Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 pub struct Controls {
     title: String,
     exits: [u8; 3],
+    onsignal: Option<Callback<crate::Msg>>,
 }
 
-pub enum Msg {}
+pub enum Msg {
+    ButtonPressed(crate::Msg),
+}
 
 #[derive(PartialEq, Clone)]
 pub struct Props {
     pub exits: [u8; 3],
+    pub onsignal: Option<Callback<crate::Msg>>,
 }
 
 impl Default for Props {
     fn default() -> Self {
-        Self { exits: [0, 0, 0] }
+        Self {
+            exits: [0, 0, 0],
+            onsignal: None,
+        }
     }
 }
 
@@ -26,20 +33,43 @@ impl Component for Controls {
         Controls {
             title: "Controls".into(),
             exits: props.exits,
+            onsignal: props.onsignal,
         }
     }
 
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        match msg {
+            Msg::ButtonPressed(msg) => {
+                if let Some(ref mut callback) = self.onsignal {
+                    callback.emit(msg);
+                }
+            }
+        }
+        false
+    }
+
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.exits = props.exits;
+        self.onsignal = props.onsignal;
         true
     }
 }
 
 impl Renderable<Controls> for Controls {
     fn view(&self) -> Html<Self> {
+        let view_button = |target: &u8| {
+            use crate::Msg::*;
+            let t = *target;
+            html! {
+                <span class="control-button",>
+                    <button onclick=|_| Msg::ButtonPressed(SwitchRoom(t)),>{&format!("Move to room {}", target)}</button>
+                </span>
+            }
+        };
         html! {
             <div class=("container", "container-controls"),>
                 <div class="title",>{&self.title}</div>
-                <div class="exits",>{format!("exits: {}, {}, {}", self.exits[0], self.exits[1], self.exits[2])}</div>
+                <div class="exits",>{ for self.exits.iter().map(view_button) }</div>
             </div>
         }
     }

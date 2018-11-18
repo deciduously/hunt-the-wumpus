@@ -1,14 +1,24 @@
 # Hunt the Wumpus
 
-In this post we'll walk through recreating the classic [Hunt the Wumpus](https://en.wikipedia.org/wiki/Hunt_the_Wumpus) game in [Yew](https://github.com/DenisKolodin/yew).  The original was played at the command line, we're going to use a webpage.
+In this post series we'll walk through recreating the classic [Hunt the Wumpus](https://en.wikipedia.org/wiki/Hunt_the_Wumpus) game in [Yew](https://github.com/DenisKolodin/yew).  The original was played at the command line, we're going to use a webpage.
+
+With Yew we will be defining our frontend in Rust, which will be compiled to [WebAssembly](https://webassembly.org/) for execution.
+
+Does this app need this?  Does *any* app need this?
+
+In order, no and debatable but probably.  Hash it out in the comments!
+
+Will we do it anyway?  **HELL YES**.
+
+Rust has some great tooling popping up making this compilation pipeline relatively painless.  Yew with `cargo-web` like I use here is only one of already several ways to go about it.  If you like what you find here I'd recommend the [RustWasm book](https://rustwasm.github.io/book/introduction.html) next.  It walks you through building a Game of Life `<canvas>` application without using any fancy frameworks or tools - from there you can pick and choose what you need on top of it.  You get to decide how low or high level you want to get with it.
 
 This is a beginner-level tutorial - though it's helpful to be familiar with reading Rust.
 
 ## Setup
 
-You'll need a nightly Rust compiler.  See [rustup](https://rustup.rs/) to get started if you need.  You'll also need [`cargo-web`](https://github.com/koute/cargo-web): `cargo install cargo-web`.  Once you have that installed, navigate to your project directory and issue `cargo new hunt-the-wumpus` at the terminal.  Open that folder in the text editor of your choice.  We're going to start by adding the basic outline of the app and build pipeline - enough to get everything compiling and running.
+You'll need a nightly Rust compiler.  See [rustup](https://rustup.rs/) to get started if you need to - it's easy.  You'll also need [`cargo-web`](https://github.com/koute/cargo-web): `cargo install cargo-web`.  Once you have that installed navigate to your project directory and issue `cargo new hunt-the-wumpus` at the terminal.  Open that folder in the text editor of your choice.  We're going to start by adding the basic outline of the app and build pipeline.  Just enough to get everything compiling and running.
 
-First thing's first - we want to use the built-in Rust target.  Issue the following commands:
+First we want to use the built-in Rust target.  Issue the following commands:
 
 ```
 $ rustup override set nightly
@@ -169,7 +179,7 @@ I'm going with SCSS, the choice is really up to you.  To follow along, issue:
 
 ```
 $ mkdir scss
-$ touch scss/
+$ touch scss/hunt.scss
 ```
 
 Just to make sure it's all hooked up, put the following in it:
@@ -209,9 +219,13 @@ Now, commit!  `git init && git commit -m "Initial commit`.
 
 In the first part, we set up our development environment and ensured we can compile and run our webapp.  If you haven't done so, now's a good time to give it a look.
 
-Now we can start modelling the logic.  First thing's first - let's define the cave.  The traditional game is played in a cave where each room is a vertex of a regular dodecahedron.  From each room, we are connected to exactly three other rooms.
+Now we can start modelling the logic.  First thing's first - let's define the cave.  The traditional game is played in a cave where each room is a vertex of a regular dodecahedron:
 
-We'll use a function to map room IDs to exits.  Place the following in `lib.rs`, above your `Model` declaration:
+![dodecahedron](https://upload.wikimedia.org/wikipedia/commons/3/33/Dodecahedron.png)
+
+From each room we are connected to exactly three other rooms.
+
+To model this we'll simply use a function to map room IDs to available exits.  This will allow us to traverse around the cave.  Place the following in `lib.rs`, above your `Model` declaration:
 
 ```rust
 fn room_exits(id: u8) -> Option<[u8; 3]> {
@@ -241,9 +255,7 @@ fn room_exits(id: u8) -> Option<[u8; 3]> {
 }
 ```
 
-Yes, this was relatively annoying to make.  You're welcome.
-
-Let's store the player's current location in the `Model`:
+Now let's store the player's current location in the `Model`:
 
 ```rust
 pub struct Model {
@@ -263,14 +275,14 @@ Don't forget to add it to our initial model too:
   }
 ```
 
-Now we can start adding to our UI.  We'll make a new component that will be responsible for rendering the controls.  I like keeping all of these in a folder:
+Now we can start adding to our UI.  We'll need a new component that will be responsible for rendering the controls.  I like keeping all of these in a folder:
 
 ```
 $ mkdir src/components
 $ touch src/components/controls.rs
 ```
 
-We'll start with a basrebones component:
+We'll start with a barebones component:
 
 ```rust
 use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
@@ -321,9 +333,9 @@ impl Renderable<Controls> for Controls {
 }
 ```
 
-Unlike our top-level component, this one accepts some props - we're going to pass in the exits to the room our player is in.  A couple of "gotchas" - take a look at the `html!` macro in the `Renderable` impl block.  We're attaching two classes to the top-level `div` - to do so, you need to wrap them up in a tuple like shown.  Also, if you're using an attribute in your tag, you need to include that trailing comma for the macro to work.  If you don't, you might end up with a very dense error message - check for these commas before panicking.  Rust macros don't necessarily yeild themselves towards useful error info - one major drawback of the tech at this point in time.
+Unlike our top-level component, this one accepts some props - we're going to pass in the exits to the room our player is in.  A couple of "gotchas" - take a look at the `html!` macro in the `Renderable` impl block.  We're attaching two classes to the top-level `div` - to do so, you need to wrap them up in a tuple like shown.  Also, if you're using an attribute in your tag like `<div class="title",>`, you need to include that trailing comma for the macro to work.  If you don't, you might end up with a very dense error message - check for these commas before panicking.  Rust macros tend to generate pretty opaque error info - one major drawback of the tech at this point in time.
 
-Also of not - we *must* provide a `Default` impl for our `Props`.  I'm just setting it to `[0, 0, 0]`.
+Also of note - we *must* provide a `Default` impl for our `Props`.  I'm just setting it to `[0, 0, 0]`.
 
 Let's position it within our larger app.  First, we have to organize our component module:
 
@@ -364,7 +376,7 @@ Current Room: 1
 Controls
 exits: 2, 5, 8
 
-Just what we asked for!  Before we get too far into the logic, let's give ourselves something resembling a layout.  This is just going to be a skeleton - I'm no CSS guru.  Feel free to make this whatever you like, this should just get you started.
+Gross, but just what we asked for!  Before we get too far into the logic, let's give ourselves something resembling a layout.  This is just going to be a skeleton - I'm no CSS guru.  Feel free to make this whatever you like, this should be enough to get you started.
 
 Replace `scss/hunt.scss` with the following:
 
@@ -402,9 +414,6 @@ Replace `scss/hunt.scss` with the following:
           text-align: center;
       }
     
-      >.scroller {
-          overflow: auto;
-      }
       .container-stats {
         flex: 0 0 256px;
         order: 0;
@@ -423,7 +432,7 @@ Replace `scss/hunt.scss` with the following:
 }
 ```
 
-Let's also go ahead and take the opportunity to break out Stats out into their own component.  Make a new file `src/components/stats.rs`:
+Let's also go ahead and take the opportunity to just break out the Stats out into their own component.  Make a new file `src/components/stats.rs`:
 
 ```rust
 use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
@@ -517,4 +526,165 @@ This gives us a simple flexbox layout that will be easy to extend.  Re-run `yarn
 
 **SCREENSHOT**
 
-Great!  Well, at least Not Terrible!  Our next order of business is moving around the cave.
+Aww yiss.  Check out Part 3 to get **interactive** with it.
+
+## Part 3 - THE BUTTONS
+
+Our next order of business is moving around the cave.  All of our actual update logic is going to happen in our top-level component.  When we first created `lib.rs`, we just made an empty `Msg` type:
+
+```rust
+#[derive(Debug, Clone)]
+pub enum Msg {}
+```
+
+To switch `current_room`, we're going to send a `Msg` containing the target room. Let's add the variant first:
+
+```rust
+#[derive(Debug, Clone)]
+pub enum Msg {
+  SwitchRoom(u8),
+}
+```
+
+Now we have to handle that message.  Inside the `impl Component for Model` block we currently have a stub for `update()`, returning `true`.  Now lets actually use the `Self::Message` parameter it accepts:
+
+```rust
+  fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    match msg {
+      Msg::SwitchRoom(target) => {
+        self.current_room = target;
+        true
+      }
+    }
+  }
+```
+
+The great thing about using an `enum` for your messages is that the compiler won't let you miss any when you `match` on them - it must be exhaustive.  We also get to easily destructure the variant.  This pattern is not unlike what Elm offers.  You just need to make sure each match arm returns a boolean - or if you like, you can simply return `true` after the `match` block.  Controlling on a per-message basis may allow for more granular performance control - some messages may not require a re-render.
+
+This message is simple - it just switches `current_room`.  Next we need to generate these messages.  Let's dive back in to `src/components/controls.rs`.  We can use `crate::Msg` to refer to the toplevel message our buttons will generate.
+
+We can now create a message that can be passed within this component:
+
+```rust
+pub enum Msg {
+    ButtonPressed(crate::Msg)
+}
+```
+
+We also need to add the callback to our props.  Yew has a type ready to go, add it to your imports:
+
+```rust
+use yew::prelude::{Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
+```
+
+Now we can use it in our `Props` and component struct:
+
+```rust
+pub struct Controls {
+    title: String,
+    exits: [u8; 3],
+    onsignal: Option<Callback<crate::Msg>>,
+}
+
+#[derive(PartialEq, Clone)]
+pub struct Props {
+    pub exits: [u8; 3],
+    pub onsignal: Option<Callback<crate::Msg>>,
+}
+
+impl Default for Props {
+    fn default() -> Self {
+        Self {
+            exits: [0, 0, 0],
+            onsignal: None,
+        }
+    }
+}
+```
+
+Finally, add it to our component initalization:
+
+```rust
+fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
+    Controls {
+        title: "Controls".into(),
+        exits: props.exits,
+        onsignal: props.onsignal,
+    }
+}
+```
+
+Now we can dynamically create buttons to generate our `HuntMsg`.  We already have the room targets coming in to the component - we just need a way to create a different button for each.  We can abstract this logic out with a local closure in our `view` function:
+
+```rust
+impl Renderable<Controls> for Controls {
+    fn view(&self) -> Html<Self> {
+        let view_button = |target: &u8| {
+            use crate::Msg::*;
+            let t = *target;
+            html! {
+                <span class="control-button",>
+                    <button onclick=|_| Msg::ButtonPressed(SwitchRoom(t)),>{&format!("Move to room {}", target)}</button>
+                </span>
+            }
+        };
+        html! {
+            <div class=("container", "container-controls"),>
+                <div class="title",>{&self.title}</div>
+                <div class="exits",>{ for self.exits.iter().map(view_button) }</div>
+            </div>
+        }
+    }
+}
+```
+
+We then map `view_button` over the exits in our state.  Another gotcha - you've got to dereference `target` outside of the `html!` macro: `let t = *target`.  If our type wasn't `Copy` like `u8`, we'd need to clone it here.
+
+Now we need to handle the message.  Let's fill in our `update`:
+
+```rust
+fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    match msg {
+        Msg::ButtonPressed(msg) => {
+            if let Some(ref mut callback) = self.onsignal {
+                callback.emit(msg);
+            }
+        }
+    }
+    false
+}
+```
+
+No need to re-render on the click - we'll handle that later when the state actually changes.  We return `false` to make sure we dont waste time on an exra render.  Now we just add the prop to `lib.rs`, down in the `view` functiom:
+
+```rust
+ <Controls: exits=room_exits(self.current_room).unwrap(), onsignal=|msg| msg,/>
+```
+
+When the button is clicked the `msg` will fire and our toplevel `update` will handle changing the state.  Now we can pass any message we want up as a callback.
+
+There's one final change to make before it all works - we need to tell any component that takes `Props` what do do when those props change.  Define these  `change` functions in the `impl Component for <...>` blocks.
+
+First, `controls.rs`:
+
+```rust
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.exits = props.exits;
+        self.onsignal = props.onsignal;
+        true
+    }
+```
+
+Then `stats.rs`:
+
+```rust
+  fn change(&mut self, props: Self::Properties) -> ShouldRender {
+    self.arrows = props.arrows;
+    self.current_room = props.current_room;
+    true
+  }
+```
+
+Now make sure your `yarn watch:rs` watcher is running and open up `localhost:8000`.  You should be able to use the buttons to "explore" the maze.
+
+Our cave isn't terribly interesting, though - we could definitely spice it up a bit.  There's some low-hanging fruit, here - there's gotta be a wumpus to hunt!

@@ -46,6 +46,10 @@
       .container-control {
         flex: 0 0 256px;
         order: 1;
+
+        .control-button {
+          flex: 1;
+        }
       }
     }
   }
