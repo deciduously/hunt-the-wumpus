@@ -127,9 +127,6 @@ impl Renderable<Model> for Model {
               <span class="arrows",>{&format!("Arrows: {}", self.arrows)}</span>
             </div>
         </div>
-        <footer>
-                <a href="https://github.com/deciduously/hunt-the-wumpus",>{"source"}</a>
-        </footer>
     }
   }
 }
@@ -194,7 +191,6 @@ Finally, point your browser to `localhost:8000`.  You should see the following:
 
 **Hunt the Wumpus**
 Arrows: 5
-[source](https://github.com/deciduously/hunt-the-wumpus)
 
 We're up and running!  Let's top off our `.gitignore`:
 
@@ -343,19 +339,182 @@ mod components;
 use components::controls::Controls;
 ```
 
-Now we can attach it to the app.  Down in the `html!` macro, let's add the component right below our `<span>` element displaying the arrows:
+Now we can attach it to the app.  Down in the `html!` macro, let's add the component right below our `<span>` element displaying the arrows.  We'll also section off the stats prinout:
 
 ```rust
 <div class="body",>
-  <span class="arrows",>{&format!("Arrows: {}", self.arrows)}</span>
+  <div class=("container", "container-stats"),>
+    <span class="title",>{"Stats"}</span>
+    <span class="arrows",>{&format!("Arrows: {}", self.arrows)}</span>
+    <br/>
+    <span class="current-room",>{&format!("Current Room: {}", self.current_room)}</span>
+  </div>
   <Controls: exits=room_exits(self.current_room).unwrap(),/>
 </div>
 ```
 
 Once the rebuild completes, go back to your browser and confirm you see:
 
+**TODO** RE-RUN THIS AND SEE
+
 **Hunt the Wumpus**
+Stats
 Arrows: 5
+Current Room: 1
 Controls
 exits: 2, 5, 8
-[source](https://github.com/deciduously/hunt-the-wumpus)
+
+Just what we asked for!  Before we get too far into the logic, let's give ourselves something resembling a layout.  This is just going to be a skeleton - I'm no CSS guru.  Feel free to make this whatever you like, this should just get you started.
+
+Replace `scss/hunt.scss` with the following:
+
+```scss
+.hunt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+
+  .header {
+    flex: 0;
+    font-size: 36px;
+    font-weight: bold;
+    text-align: center;
+  }
+  
+  .window {
+    display: flex;
+    flex-direction: row;
+
+    .container {
+      border: solid 1px #000;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      margin: 10px;
+      padding: 5px;
+  
+      >.title {
+          border-bottom: dashed 1px #000;
+          font-weight: bold;
+          text-align: center;
+      }
+    
+      >.scroller {
+          overflow: auto;
+      }
+      .container-stats {
+        flex: 0 0 256px;
+        order: 0;
+      
+        .stat {
+          font-style: italic;
+        }
+      }
+    
+      .container-control {
+        flex: 0 0 256px;
+        order: 1;
+      }
+    }
+  }
+}
+```
+
+Let's also go ahead and take the opportunity to break out Stats out into their own component.  Make a new file `src/components/stats.rs`:
+
+```rust
+use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
+
+pub struct Stats {
+  title: String,
+  arrows: u8,
+  current_room: u8,
+}
+
+pub enum Msg {}
+
+#[derive(PartialEq, Clone)]
+pub struct Props {
+  pub arrows: u8,
+  pub current_room: u8,
+}
+
+impl Default for Props {
+  fn default() -> Self {
+    Self {
+      arrows: 0,
+      current_room: 0,
+    }
+  }
+}
+
+impl Component for Stats {
+  type Message = Msg;
+  type Properties = Props;
+
+  fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
+    Stats {
+      title: "Stats".into(),
+      arrows: props.arrows,
+      current_room: props.current_room,
+    }
+  }
+
+  fn update(&mut self, _msg: Self::Message) -> ShouldRender {
+    true
+  }
+}
+
+impl Renderable<Stats> for Stats {
+  fn view(&self) -> Html<Self> {
+    html! {
+      <div class=("container", "container-stats"),>
+        <span class="title",>{&self.title}</span>
+        <span class="stat",>{&format!("Arrows: {}", self.arrows)}</span>
+        <br/>
+        <span class="stat",>{&format!("Current Room: {}", self.current_room)}</span>
+      </div>
+    }
+  }
+}
+```
+
+New we just add it to `src/components/mod.rs`:
+
+```rust
+pub mod controls;
+pub mod stats;
+```
+
+and include it in our top level component in `lib.rs`:
+
+```rust
+mod components
+
+use self::components::{controls::Controls, stats::Stats};
+
+// down to the bottom...
+
+impl Renderable<Model> for Model {
+  fn view(&self) -> Html<Self> {
+    html! {
+        <div class="hunt",>
+            <div class="header",>{"Hunt the Wumpus"}</div>
+            <div class="window",>
+              <Stats: arrows=self.arrows, current_room=self.current_room,/>
+              <Controls: exits=room_exits(self.current_room).unwrap(),/>
+            </div>
+        </div>
+    }
+  }
+}
+```
+
+This gives us a simple flexbox layout that will be easy to extend.  Re-run `yarn build:css-once` and reload `localhost:8000` in your browser.
+
+**SCREENSHOT**
+
+Great!  Well, at least Not Terrible!  Our next order of business is moving around the cave.

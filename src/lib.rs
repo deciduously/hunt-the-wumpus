@@ -4,7 +4,7 @@ extern crate yew;
 
 mod components;
 
-use self::components::controls::Controls;
+use self::components::{controls::Controls, stats::Stats};
 
 use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
 
@@ -64,14 +64,11 @@ impl Renderable<Model> for Model {
     html! {
         <div class="hunt",>
             <div class="header",>{"Hunt the Wumpus"}</div>
-            <div class="body",>
-              <span class="arrows",>{&format!("Arrows: {}", self.arrows)}</span>
+            <div class="window",>
+              <Stats: arrows=self.arrows, current_room=self.current_room,/>
               <Controls: exits=room_exits(self.current_room).unwrap(),/>
             </div>
         </div>
-        <footer>
-                <a href="https://github.com/deciduously/hunt-the-wumpus",>{"source"}</a>
-        </footer>
     }
   }
 }
