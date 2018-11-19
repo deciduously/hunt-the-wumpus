@@ -5,7 +5,7 @@ extern crate yew;
 use yew::prelude::*;
 
 pub struct Model {
-  arrows: i32,
+  arrows: u8,
 }
 
 #[derive(Debug, Clone)]

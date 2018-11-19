@@ -119,7 +119,7 @@ extern crate yew;
 use yew::prelude::*;
 
 pub struct Model {
-  arrows: i32,
+  arrows: u8,
 }
 
 #[derive(Debug, Clone)]
@@ -252,9 +252,9 @@ See [here](https://github.com/deciduously/hunt-the-wumpus/tree/master/part1) for
 *********************************************************************************************************************************************************************************************************************************************************************************
 *********************************************************************************************************************************************************************************************************************************************************************************
 
-In the first part, we set up our development environment and ensured we can compile and run our webapp.  If you haven't done so, now's a good time to give it a look.
+In the first part, we set up our development environment and ensured we can compile and run our webapp.  If you haven't done so, now's a good time to give it a look.  This part starts assuming your project folder mirrors [this one](https://github.com/deciduously/hunt-the-wumpus/tree/master/part1)
 
-Now we can start modelling the logic.  First thing's first - let's define the cave.  The traditional game is played in a cave where each room is a vertex of a regular dodecahedron:
+Now we can start modelling the logic.  we'll start by defining the cave.  The traditional game is played in a cave where each room is a vertex of a regular dodecahedron:
 
 ![dodecahedron](https://upload.wikimedia.org/wikipedia/commons/3/33/Dodecahedron.png)
 
@@ -383,35 +383,36 @@ When we add new components, don't forget to add the declaration to this file.  B
 ```rust
 mod components;
 
-use components::controls::Controls;
+use self::components::controls::Controls;
 ```
 
-Now we can attach it to the app.  Down in the `html!` macro, let's add the component right below our `<span>` element displaying the arrows.  We'll also section off the stats prinout:
+Now we can attach it to the app.  Down in the `html!` macro let's add the component right below our `<span>` element displaying the arrows.  We'll also section off the stats printout and display the current room.  Adjust yours to match this:
 
 ```rust
-<div class="body",>
-  <div class=("container", "container-stats"),>
-    <span class="title",>{"Stats"}</span>
-    <span class="arrows",>{&format!("Arrows: {}", self.arrows)}</span>
-    <br/>
-    <span class="current-room",>{&format!("Current Room: {}", self.current_room)}</span>
-  </div>
-  <Controls: exits=room_exits(self.current_room).unwrap(),/>
+<div class="hunt",>
+    <div class="header",>{"Hunt the Wumpus"}</div>
+    <div class="body",>
+      <div class=("container""container-stats"),>
+        <span class="title",>{"Stats"}</span>
+        <br/>
+        <span class="arrows",>{&forma("Arrows: {}", self.arrows)}</span>
+        <br/>
+        <span class="current-room",>{&forma("Current Room: {}"self.current_room)}</span>
+      </div>
+      <Controls: exits=room_exi(self.current_room).unwrap(),/>
+    </div>
 </div>
 ```
 
 Once the rebuild completes, go back to your browser and confirm you see:
 
-**TODO** RE-RUN THIS AND SEE
-
-**Hunt the Wumpus**
 Stats
-Arrows: 5
+**Arrows: 5**
 Current Room: 1
 Controls
 exits: 2, 5, 8
 
-Gross, but just what we asked for!  Before we get too far into the logic, let's give ourselves something resembling a layout.  This is just going to be a skeleton - I'm no CSS guru.  Feel free to make this whatever you like, this should be enough to get you started.
+Pretty plain, but just what we asked for!  Before we get too far into the logic, let's give ourselves something resembling a layout.  This is just going to be a skeleton - I'm no CSS guru.  Feel free to make this whatever you like, this should be enough to get you started.
 
 Replace `scss/hunt.scss` with the following:
 
@@ -449,31 +450,11 @@ Replace `scss/hunt.scss` with the following:
           font-weight: bold;
           text-align: center;
       }
-    
-      >.scroller {
-          overflow: auto;
-      }
-  }
-
-  .container-stats {
-    flex: 0 0 256px;
-    order: 0;
-  
-    .stat {
-      font-style: italic;
-    }
-  }
-
-  .container-control {
-    flex: 0 0 256px;
-    order: 1;
-
-    .control-button {
-      flex: 1;
-    }
   }
 }
 ```
+
+Don't forget to run `yarn build:style` to regenerate the compiled CSS.
 
 Let's also go ahead and take the opportunity to just break out the Stats out into their own component.  Make a new file `src/components/stats.rs`:
 
@@ -544,7 +525,7 @@ pub mod stats;
 and include it in our top level component in `lib.rs`:
 
 ```rust
-mod components
+mod components;
 
 use self::components::{controls::Controls, stats::Stats};
 
@@ -599,6 +580,8 @@ Now we have to handle that message.  Inside the `impl Component for Model` block
     }
   }
 ```
+
+Don't forget to remove the underscore from `_msg` in the parameter list!
 
 The great thing about using an `enum` for your messages is that the compiler won't let you miss any when you `match` on them - it must be exhaustive.  We also get to easily destructure the variant.  This pattern is not unlike what Elm offers.  You just need to make sure each match arm returns a boolean - or if you like, you can simply return `true` after the `match` block.  Controlling on a per-message basis may allow for more granular performance control - some messages may not require a re-render.
 
@@ -720,9 +703,9 @@ fn change(&mut self, props: Self::Properties) -> ShouldRender {
 }
 ```
 
-Now make sure your `yarn watch:rs` watcher is running and open up `localhost:8000`.  You should be able to use the buttons to "explore" the maze.  To keep track of where we've been, let's display a running history for the player.
+Now make sure your `yarn watch:rs` watcher is running and open up `localhost:8000`.  You should be able to use the buttons to "explore" the maze.
 
-First, we'll add a field to our toplevel state in `lib.rs`:
+To keep track of where we've been, let's display a running history for the player.  First, we'll add a field to our toplevel state in `lib.rs`:
 
 ```rust
 pub struct Model {
@@ -747,7 +730,7 @@ impl Component for Model {
 We'll add a new component in a new file `src/components/messages.rs`:
 
 ```rust
-use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::prelude::*;
 
 pub struct Messages {
   title: String,
@@ -857,13 +840,14 @@ and then add right at the end:
 // ..
   .container-messages {
     flex: 0 0 192px;
-    
     ul {
       list-style-type: none;
     }
   }
 }
 ```
+
+To pull in the changes, run `yarn build:style`.
 
 Now let's add some messages!  We can welcome the player to their likely doom when the game initiates in `lib.rs`:
 
