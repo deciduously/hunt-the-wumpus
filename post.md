@@ -1,10 +1,6 @@
 # Wumpus Season
 
-*this post is part of a series*
-
-Part 1: Setup | [Part 2: UI]() - Coming Soon! | [Part 3: Gameplay]() - Coming Soon!
-
-In this post series we'll walk through recreating the classic [Hunt the Wumpus](https://en.wikipedia.org/wiki/Hunt_the_Wumpus) game in [Yew](https://github.com/DenisKolodin/yew).  The original was played at the command line, we're going to use a webpage.  Yew allows us to define our frontend in Rust.  It will will be compiled to [WebAssembly](https://webassembly.org/) for execution.
+In this post series we'll walk through recreating the classic [Hunt the Wumpus](https://en.wikipedia.org/wiki/Hunt_the_Wumpus) game in [Yew](https://github.com/DenisKolodin/yew).  The original was played at the command line, we're going to use a webpage.  Yew allows us to define our frontend in Rust.  Our app will be compiled to [WebAssembly](https://webassembly.org/) for execution.
 
 Does this app need this?  *No.*
 
@@ -14,7 +10,7 @@ Will we do it anyway?  **HELL YES!**
 
 This is a beginner-level tutorial - it's helpful to be familiar with reading Rust but there's nothing too fancy going on here.  Comfort in any imperative language should be sufficient.
 
-I've split this into three parts.  This part, Part 1, is desgined to stand alone as a useful guide for starting your own blank project.  It's pretty quick and is only concerned with the setup - no wumpus hunting yet, just replace the filler text with stuff appropriate for your app.  Parts 2 and 3 are much longer and go together.  Part 2 sets up our basic UI and mechanism for moving around the cave and Part 3 discusses the game logic.
+I've split this into three parts and will post them throughout this week.  This first part is designed to stand alone as a useful guide for starting your own blank project.  No wumpus hunting yet, just replace the filler text with stuff appropriate for your app.  Part 2 sets up our basic UI and mechanism for moving around the cave and Part 3 discusses the game logic.
 
 ## Setup
 
@@ -22,13 +18,11 @@ Rust has some great tooling popping up making this compilation pipeline relative
 
 You'll need a nightly Rust compiler.  See [rustup](https://rustup.rs/) to get started if you need to - it's easy.  You'll also need [`cargo-web`](https://github.com/koute/cargo-web): `cargo install cargo-web`.
 
-Once you have that installed navigate to your project directory and issue `cargo new hunt-the-wumpus` at the terminal.  Open that folder in the text editor of your choice.  We're going to start by adding the basic outline of the app and build pipeline.  Just enough to get everything compiling and running.
+Once you have that installed navigate to your projects directory and issue `cargo new hunt-the-wumpus` at the terminal.  Open that folder in the text editor of your choice.  We're going to start by adding just enough to get everything compiling and running.
 
-First lets set up a project folder to use the built-in Rust target.  Issue the following commands:
+First lets set up our project folder to use the built-in Rust target.  Issue the following commands:
 
 ```
-$ cargo new hunt-the-wumpus
-$ cd hunt-the-wumpus
 $ rustup override set nightly
 $ echo 'default-target = "wasm32-unknown-unknown"' > Web.toml
 ```
@@ -214,7 +208,7 @@ Finally, point your browser to `localhost:8000`.  You should see the following:
 Hunt the Wumpus
 **Arrows: 5**
 
-We're up and running!  Let's top off our `.gitignore`:
+We're up and running!  The development config works.  Let's top off our `.gitignore`:
 
 ```
 /target
@@ -226,7 +220,7 @@ yarn-*.log
 /release
 ```
 
-The development config works!  Let's test our our production bundle.  First create `rollup.config.js` and save the following contents:
+Let's test our our production bundle.  First create `rollup.config.js` and save the following contents:
 
 ```js
 import babel from "rollup-plugin-babel"
@@ -251,6 +245,8 @@ export default {
 Now make sure you exit the `watch:rs` process, and then try `yarn prod`.  When the build completes, you should see the same output at `localhost:8080`.
 
 Once it's all working, commit!  `git init && git commit -m "Initial commit`.  Tomorrow we'll dive in to the build.
+
+See [here](https://github.com/deciduously/hunt-the-wumpus/tree/master/part1) for the full code at the end of part 1.
 
 **PART 2**
 *********************************************************************************************************************************************************************************************************************************************************************************
