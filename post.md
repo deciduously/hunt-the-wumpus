@@ -1,18 +1,18 @@
-# Hunt the Wumpus
+# Wumpus Season
 
-In this post series we'll walk through recreating the classic [Hunt the Wumpus](https://en.wikipedia.org/wiki/Hunt_the_Wumpus) game in [Yew](https://github.com/DenisKolodin/yew).  The original was played at the command line, we're going to use a webpage.
+In this post series we'll walk through recreating the classic [Hunt the Wumpus](https://en.wikipedia.org/wiki/Hunt_the_Wumpus) game in [Yew](https://github.com/DenisKolodin/yew).  The original was played at the command line, we're going to use a webpage.  Yew allows us to define our frontend in Rust.  It will will be compiled to [WebAssembly](https://webassembly.org/) for execution.
 
-With Yew we will be defining our frontend in Rust, which will be compiled to [WebAssembly](https://webassembly.org/) for execution.
+Does this app need this?  No.
 
-Does this app need this?  Does *any* app need this?
+Does *any* app need this?  Debatable, but probably.  Hash it out in the comments!
 
-In order, no and debatable but probably.  Hash it out in the comments!
+Will we do it anyway?  **HELL YES!**.
 
-Will we do it anyway?  **HELL YES**.
-
-Rust has some great tooling popping up making this compilation pipeline relatively painless.  Yew with `cargo-web` like I use here is only one of already several ways to go about it.  If you like what you find here I'd recommend the [RustWasm book](https://rustwasm.github.io/book/introduction.html) next.  It walks you through building a Game of Life `<canvas>` application without using any fancy frameworks or tools - from there you can pick and choose what you need on top of it.  You get to decide how low or high level you want to get with it.
+Rust has some great tooling popping up making this compilation pipeline relatively painless.  Yew with `cargo-web` like we use is only one of already several ways to go about it.  If you like what you find here I'd recommend the [RustWasm book](https://rustwasm.github.io/book/introduction.html) next.  It walks you through building a Game of Life `<canvas>` application without using any fancy frameworks or tools - from there you can pick and choose what you need on top of it.  You get to decide how low or high level you want to get with it.  Also be sure to check out [draco](https://github.com/utkarshkukreti/draco), an alternative client-side Rust->Wasm framework.
 
 This is a beginner-level tutorial - though it's helpful to be familiar with reading Rust.
+
+I've split this into three parts.  Part 1 is pretty quick and is only concerned with the setup - it's useful on its own for starting your own blank project.  Parts 2 and 3 are much longer and go together.  Part 2 sets up our basic UI and mechanism for moving around the cave and Part 3 discusses the game logic.
 
 ## Setup
 
@@ -107,7 +107,7 @@ extern crate stdweb;
 #[macro_use]
 extern crate yew;
 
-use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::prelude::*;
 
 pub struct Model {
   arrows: i32,
@@ -216,7 +216,9 @@ yarn-*.log
 
 Now, commit!  `git init && git commit -m "Initial commit`.
 
-## **PART 2**
+**PART 2**
+*********************************************************************************************************************************************************************************************************************************************************************************
+*********************************************************************************************************************************************************************************************************************************************************************************
 
 In the first part, we set up our development environment and ensured we can compile and run our webapp.  If you haven't done so, now's a good time to give it a look.
 
@@ -286,7 +288,7 @@ $ touch src/components/controls.rs
 We'll start with a barebones component:
 
 ```rust
-use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::prelude::*;
 
 pub struct Controls {
     title: String,
@@ -444,7 +446,7 @@ Replace `scss/hunt.scss` with the following:
 Let's also go ahead and take the opportunity to just break out the Stats out into their own component.  Make a new file `src/components/stats.rs`:
 
 ```rust
-use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::prelude::*;
 
 pub struct Stats {
   title: String,
@@ -535,9 +537,7 @@ This gives us a simple flexbox layout that will be easy to extend.  Re-run `yarn
 
 **SCREENSHOT**
 
-Aww yiss.  Check out Part 3 to get **interactive** with it.
-
-## Part 3 - THE BUTTONS
+Aww yiss.  Now we're ready to get **interactive** with it.
 
 Our next order of business is moving around the cave.  All of our actual update logic is going to happen in our top-level component.  When we first created `lib.rs`, we just made an empty `Msg` type:
 
@@ -580,13 +580,7 @@ pub enum Msg {
 }
 ```
 
-We also need to add the callback to our props.  Yew has a type ready to go, add it to your imports:
-
-```rust
-use yew::prelude::{Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
-```
-
-Now we can use it in our `Props` and component struct:
+We also need to add the callback to our props.  Yew has a type ready to go:
 
 ```rust
 pub struct Controls {
@@ -664,34 +658,34 @@ fn update(&mut self, msg: Self::Message) -> ShouldRender {
 }
 ```
 
-No need to re-render on the click - we'll handle that later when the state actually changes.  We return `false` to make sure we dont waste time on an exra render.  Now we just add the prop to `lib.rs`, down in the `view` functiom:
+No need to re-render on the click.  We'll handle that later when the state actually changes.  We return `false` to make sure we dont waste time on an exra render.  Now we just add the prop to `lib.rs`, down in the `view` functiom:
 
 ```rust
- <Controls: exits=room_exits(self.current_room).unwrap(), onsignal=|msg| msg,/>
+<Controls: exits=room_exits(self.current_room).unwrap(), onsignal=|msg| msg,/>
 ```
 
 When the button is clicked the `msg` will fire and our toplevel `update` will handle changing the state.  Now we can pass any message we want up as a callback.
 
-There's one final change to make before it all works - we need to tell any component that takes `Props` what do do when those props change.  Define these  `change` functions in the `impl Component for <...>` blocks.
+There's one final change to make before it all works - we need to tell any component that takes `Props` what do do when those props change.  Define these  `change` functions in the `impl Component for <...>` blocks of these respective components:
 
 First, `controls.rs`:
 
 ```rust
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.exits = props.exits;
-        self.onsignal = props.onsignal;
-        true
-    }
+fn change(&mut self, props: Self::Properties) -> ShouldRender {
+    self.exits = props.exits;
+    self.onsignal = props.onsignal;
+    true
+}
 ```
 
 Then `stats.rs`:
 
 ```rust
-  fn change(&mut self, props: Self::Properties) -> ShouldRender {
-    self.arrows = props.arrows;
-    self.current_room = props.current_room;
-    true
-  }
+fn change(&mut self, props: Self::Properties) -> ShouldRender {
+  self.arrows = props.arrows;
+  self.current_room = props.current_room;
+  true
+}
 ```
 
 Now make sure your `yarn watch:rs` watcher is running and open up `localhost:8000`.  You should be able to use the buttons to "explore" the maze.  To keep track of where we've been, let's display a running history for the player.
@@ -816,12 +810,12 @@ impl Renderable<Model> for Model {
 }
 ```
 
-Now let's add a little style in `scss/hunt.scss`.  Add the followng below the `>.title` block inside the `.container` block:
+Now let's add a little style in `scss/hunt.scss`.  Add the following below the `>.title` block inside the `.container` block:
 
 ```scss
-      >.scroller {
-          overflow: auto;
-      }
+>.scroller {
+    overflow: auto;
+}
 ```
 
 and then add right at the end:
@@ -839,13 +833,7 @@ and then add right at the end:
 }
 ```
 
-Now let's add some!  First, we need an action for it:
-
-```rust
-
-```
-
-Let's welcome the player to their likely doom when the game initiates in `lib.rs`:
+Now let's add some messages!  We can welcome the player to their likely doom when the game initiates in `lib.rs`:
 
 ```rust
 fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
@@ -877,9 +865,11 @@ We'll also log each move:
 
 **SCREENSHOT**
 
-Nifty!  Join me in Part 4 for some peril.
+Nifty!  Here's a **tagged commit**.  Join me in Part 3 to make a game out of this dodecacave.
 
-**PART 4** - THE DANGER
+**PART 3**
+*********************************************************************************************************************************************************************************************************************************************************************************
+*********************************************************************************************************************************************************************************************************************************************************************************
 
 Our cave isn't terribly interesting.  There's some low-hanging fruit, here - there's gotta be a wumpus to hunt!
 
@@ -995,7 +985,25 @@ impl Model {
 
 With all this danger lurking around every corner, we should give the player a few warnings as they're stepping around.
 
-Let's add another method to `Model` to sniff around our surroundings:
+Let's add another method to `Model` to sniff around our surroundings.  If any of our adjacent rooms has a hazard, we'll alert the player with a spooky message:
 
 ```rust
+fn warning_messages(&mut self) {
+  for adj in &room_exits(self.current_room).unwrap() {
+    let t = *adj;
+    if self.wumpus == t {
+      self.messages.push("You smell something horrific and rancid.".into());
+    } else if self.pits.contains(&t) {
+      self.messages.push("You feel a cold updraft from a nearby cavern.".into());
+    } else if self.bats.contains(&t) {
+      self.messages.push("You hear a faint but distinct flapping of wings.".into());
+    }
+  }
+}
+```
+
+We see the current room in the `Stats` component, so lets replace the `"Moved to <room>"` text with this warning:
+
+```rust
+
 ```
