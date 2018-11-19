@@ -1,46 +1,61 @@
 # Wumpus Season
 
+*this post is part of a series*
+
+Part 1: Setup | [Part 2: UI]() - Coming Soon! | [Part 3: Gameplay]() - Coming Soon!
+
 In this post series we'll walk through recreating the classic [Hunt the Wumpus](https://en.wikipedia.org/wiki/Hunt_the_Wumpus) game in [Yew](https://github.com/DenisKolodin/yew).  The original was played at the command line, we're going to use a webpage.  Yew allows us to define our frontend in Rust.  It will will be compiled to [WebAssembly](https://webassembly.org/) for execution.
 
-Does this app need this?  No.
+Does this app need this?  *No.*
 
 Does *any* app need this?  Debatable, but probably.  Hash it out in the comments!
 
-Will we do it anyway?  **HELL YES!**.
-
-Rust has some great tooling popping up making this compilation pipeline relatively painless.  Yew with `cargo-web` like we use is only one of already several ways to go about it.  If you like what you find here I'd recommend the [RustWasm book](https://rustwasm.github.io/book/introduction.html) next.  It walks you through building a Game of Life `<canvas>` application without using any fancy frameworks or tools - from there you can pick and choose what you need on top of it.  You get to decide how low or high level you want to get with it.  Also be sure to check out [draco](https://github.com/utkarshkukreti/draco), an alternative client-side Rust->Wasm framework.
+Will we do it anyway?  **HELL YES!**
 
 This is a beginner-level tutorial - it's helpful to be familiar with reading Rust but there's nothing too fancy going on here.  Comfort in any imperative language should be sufficient.
 
-I've split this into three parts.  Part 1 is desgined to stand alone as a useful guide for starting your own blank project.  It's pretty quick and is only concerned with the setup - no wumpus hunting yet, just replace the filler text with stuff appropriate for your app.  Parts 2 and 3 are much longer and go together.  Part 2 sets up our basic UI and mechanism for moving around the cave and Part 3 discusses the game logic.
+I've split this into three parts.  This part, Part 1, is desgined to stand alone as a useful guide for starting your own blank project.  It's pretty quick and is only concerned with the setup - no wumpus hunting yet, just replace the filler text with stuff appropriate for your app.  Parts 2 and 3 are much longer and go together.  Part 2 sets up our basic UI and mechanism for moving around the cave and Part 3 discusses the game logic.
 
 ## Setup
 
-You'll need a nightly Rust compiler.  See [rustup](https://rustup.rs/) to get started if you need to - it's easy.  You'll also need [`cargo-web`](https://github.com/koute/cargo-web): `cargo install cargo-web`.  Once you have that installed navigate to your project directory and issue `cargo new hunt-the-wumpus` at the terminal.  Open that folder in the text editor of your choice.  We're going to start by adding the basic outline of the app and build pipeline.  Just enough to get everything compiling and running.
+Rust has some great tooling popping up making this compilation pipeline relatively painless.  Yew with `cargo-web` like we use is only one of already several ways to go about it.  If you like what you find here I'd recommend the [RustWasm book](https://rustwasm.github.io/book/introduction.html) next.  It walks you through building a Game of Life `<canvas>` application without using any fancy frameworks or tools - from there you can pick and choose what you need on top of it.  You get to decide how low or high level you want to get with it.  Also be sure to check out [draco](https://github.com/utkarshkukreti/draco), an alternative client-side Rust->Wasm framework.
 
-First we want to use the built-in Rust target.  Issue the following commands:
+You'll need a nightly Rust compiler.  See [rustup](https://rustup.rs/) to get started if you need to - it's easy.  You'll also need [`cargo-web`](https://github.com/koute/cargo-web): `cargo install cargo-web`.
+
+Once you have that installed navigate to your project directory and issue `cargo new hunt-the-wumpus` at the terminal.  Open that folder in the text editor of your choice.  We're going to start by adding the basic outline of the app and build pipeline.  Just enough to get everything compiling and running.
+
+First lets set up a project folder to use the built-in Rust target.  Issue the following commands:
 
 ```
+$ cargo new hunt-the-wumpus
+$ cd hunt-the-wumpus
 $ rustup override set nightly
 $ echo 'default-target = "wasm32-unknown-unknown"' > Web.toml
 ```
 
-This will ensure the `cargo web` command always uses the proper target.  The `override` command is directory-specific - to change it globally use `rustup default nightly`. I prefer to default to stable and only use nightly when necessary - like for the `wasm32-unknown-unknown` target.
+This will ensure the `cargo web` command always uses the proper target.  The `rustup override` command is directory-specific - to change it globally use `rustup default nightly`. I prefer to default to stable and only use nightly when necessary.
 
 Now make your `Cargo.toml` look like the following:
 
 ```toml
 [package]
+authors = ["Hunter Wumpfrey <hw@bottomlesspit.net>"]
+edition = "2018"
 name = "hunt-the-wumpus"
 version = "0.1.0"
-authors = ["Hilbert Wumpfrey <hw@wumpusfood.gov>"]
-edition = "2018"
+[[bin]]
+name = "hunt"
+path = "src/main.rs"
 
 [dependencies]
 stdweb = "0.4"
 
 [dependencies.yew]
 git = "https://github.com/DenisKolodin/yew"
+
+[lib]
+name = "hunt_the_wumpus"
+path = "src/lib.rs"
 ```
 
 Most of our code is going to live in a library and the binary is just going to mount the app to the page.
@@ -92,12 +107,12 @@ We also just need a stub here.  Add the following to that file and save it:
 </html>
 ```
 
-We won't need that again - it just loads `hunt.js`.  This `static` directory is where your favicon will go as well - I like [this one](https://www.favicon.cc/?action=icon&file_id=701981).
+We won't need that again - it just loads up our compiled JS and our stylesheet.  This `static` directory is where your favicon will go as well - I like [this one](https://www.favicon.cc/?action=icon&file_id=701981).
 
 Now, let's add the basic Yew outline - the thing we're going to render.  Issue:
 
 ```
-$ touch lib.rs
+$ touch src/lib.rs
 ```
 
 Fill it with the following template:
@@ -143,40 +158,36 @@ impl Renderable<Model> for Model {
 }
 ```
 
-This is what most of our components are going to look like.  This should look somewhat familiar if you've used other frontend frameworks.  When the app is initialized we will `create` this component with the given `Model`, and Yew provides the `Renderable` trait and a JSX-like `html!` macro for defining the view.  It then draws inspiration from tools like Elm to provide a `Msg` type which will drive our events in the `update` method.  To start, `update` will always return `true`, triggering a redraw.
+This is what most of our components are going to look like.  This should look somewhat familiar if you've used other frontend frameworks.  There's a `Component` trait where we can define state transformations like `create` and `update` and a `Renderable<T>` trait with a JSX-like `html!` macro for defining the view.  It then draws inspiration from tools like Elm to provide a `Msg` type which will drive our events in the `update` method.  We don't have any messages to process yet, so we're just including a stub.  To start off `update` will always return `true` for `ShouldRender`, triggering a redraw.
 
 Before we get to coding, we need to set up the rest of the build pipeline.  We're going to use [`yarn`](https://yarnpkg.com/en/) - it's a web app, after all.
 
 ```
 $ yarn init
 // answer the questions
-$ yarn add -D @babel/core @babel/preset-env autoprefixer node-sass nodemon npm-run-all postcss postcss-cli rollup rollup-plugin-babel rollup-plugin-postcss rollup-plugin-uglify rollup-plugin-wasm
+$ yarn add -D @babel/core @babel/preset-env autoprefixer node-sass nodemon npm-run-all postcss postcss-cli rollup rollup-plugin-babel rollup-plugin-postcss rollup-plugin-uglify rollup-plugin-wasm serve
 ```
 
-Then add these scripts:
+Then add these scripts to your `package.json`:
 
 ```json
   "scripts": {
-    "clean": "cargo clean",
-    "clean:deploy": "rm -rf release/",
-    "build:rs": "cargo web deploy --release",
     "build:js": "rollup -c",
+    "build:rs": "cargo web deploy --release",
     "build:scss": "node-sass --include-path scss scss/hunt.scss css/hunt.css",
     "build:css": "postcss --use autoprefixer -o static/hunt.css css/hunt.css",
+    "build:style": "run-s build:scss build:css",
     "build:copy": "cp target/deploy/hunt.css release/ && cp target/deploy/hunt.wasm release/ && cp target/deploy/index.html release/ && cp target/deploy/favicon.ico release/",
-    "build": "run-s clean:deploy build:rs build:js build:copy",
-    "serve": "serve -p 8080 release/",
+    "build": "run-s clean:deploy build:rs build:js build:style build:copy",
+    "clean:deploy": "rm -rf /release",
     "prod": "run-s build serve",
+    "serve": "serve -p 8080 release",
     "watch:rs": "cargo web start --release",
-    "watch:scss": "nodemon -e scss -x \"yarn build:scss\"",
-    "watch:css": "nodemon -e css -x \"yarn build:css\"",
-    "watch": "run-p watch:rs watch:scss watch:css",
-    "start": "run-s watch",
     "test": "echo \"Error: no tests!\" && exit 1"
   },
 ```
 
-I'm going with SCSS, the choice is really up to you.  To follow along, issue:
+To set up our app-wide stylesheet, issue:
 
 ```
 $ mkdir scss
@@ -191,17 +202,17 @@ Just to make sure it's all hooked up, put the following in it:
 }
 ```
 
-Now, let's hit the big button:
+Now, let's hit the big button.  Open your terminal and issue
 
 ```
-$ yarn build:css-once
+$ yarn build:style
 $ yarn watch:rs
 ```
 
 Finally, point your browser to `localhost:8000`.  You should see the following:
 
-**Hunt the Wumpus**
-Arrows: 5
+Hunt the Wumpus
+**Arrows: 5**
 
 We're up and running!  Let's top off our `.gitignore`:
 
@@ -212,9 +223,34 @@ We're up and running!  Let's top off our `.gitignore`:
 yarn-*.log
 /css
 /static/*.css
+/release
 ```
 
-Now, commit!  `git init && git commit -m "Initial commit`.
+The development config works!  Let's test our our production bundle.  First create `rollup.config.js` and save the following contents:
+
+```js
+import babel from "rollup-plugin-babel"
+import uglify from "rollup-plugin-uglify"
+
+export default {
+    input: './target/deploy/hunt.js',
+    output: {
+        name: 'hunt',
+        file: './release/hunt.js',
+        format: 'es',
+    },
+    plugins: [
+        babel({
+            exclude: 'node_modules/**'
+        }),
+        uglify
+    ]
+};
+```
+
+Now make sure you exit the `watch:rs` process, and then try `yarn prod`.  When the build completes, you should see the same output at `localhost:8080`.
+
+Once it's all working, commit!  `git init && git commit -m "Initial commit`.  Tomorrow we'll dive in to the build.
 
 **PART 2**
 *********************************************************************************************************************************************************************************************************************************************************************************
