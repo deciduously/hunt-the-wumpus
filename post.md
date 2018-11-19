@@ -37,9 +37,10 @@ authors = ["Hilbert Wumpfrey <hw@wumpusfood.gov>"]
 edition = "2018"
 
 [dependencies]
-
 stdweb = "0.4"
-yew = { git = "https://github.com/DenisKolodin/yew" }
+
+[dependencies.yew]
+git = "https://github.com/DenisKolodin/yew"
 ```
 
 Most of our code is going to live in a library and the binary is just going to mount the app to the page.
@@ -780,8 +781,9 @@ impl Renderable<Messages> for Messages {
     }
   }
 }
-
 ```
+
+We're showing the messages in reverse - otherwise, this isn't too different from `controls.rs`.  Protip - I use a snippet something like this when I'm starting a new component!
 
 Don't forget to add it to `src/components/mod.rs`:
 
@@ -843,7 +845,7 @@ Now let's add some!  First, we need an action for it:
 
 ```
 
-let's welcome the player to their likely doom when the game initiates in `lib.rs`:
+Let's welcome the player to their likely doom when the game initiates in `lib.rs`:
 
 ```rust
 fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
@@ -853,7 +855,7 @@ fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
     messages: Vec::new(),
   };
   ret.messages.push(
-    "You've entered a clammy, dark cave, armed with 5 arrows.  You are very hungry.".to_string(),
+    "You've entered a clammy, dark cave, armed with 5 arrows.  You are very cold.".to_string(),
   );
   ret
 }
@@ -884,9 +886,116 @@ Our cave isn't terribly interesting.  There's some low-hanging fruit, here - the
 Open up `src/lib.rs` and add one to our `Model`:
 
 ```rust
-
+pub struct Model {
+  arrows: u8,
+  current_room: u8,
+  messages: Vec<String>,
+  wumpus: u8,
+}
 ```
 
--- PIT
+We need a placeholder starting position - there is no room 0, our cave rooms are 1-indexed:
 
--- BATS
+```rust
+fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+  let mut rng = thread_rng();
+  let mut ret = Model {
+    arrows: 5,
+    current_room: 1,
+    messages: Vec::new(),
+    wumpus: 0,
+  };
+  // ..
+}
+```
+
+We'll place him in a moment.  That's not quite scary enough, though.  In addition to the ravenous monstrosity loafing about there are two gigantic bats.  If you end up in a room with a bat, it'll quite literally sweep you off your feet - 
+
+Now, we're gonna crank the horror up to eleven.  Forget the two chaos-inducing hellbats.  There are also two rooms that are bottomless pits.  What the flip, man. **Bottomless**.  You'll die of thirst, after three days of falling.  Gives me the crimineys, I'll tell you hwat.
+
+We'll initialize the variables to 0 and place them later, to amke sure we scatter them about:
+
+```rust
+pub struct Model {
+  arrows: u8,
+  current_room: u8,
+  messages: Vec<String>,
+  wumpus: u8,
+  bats: [u8; 2],
+  pits: [u8; 2],
+}
+let mut ret = Model {
+  arrows: 5,
+  current_room: 1,
+  messages: Vec::new(),
+  wumpus: 0,
+  bats: [0, 0],
+  pits: [0, 0],
+};
+```
+
+To place the horribleness, we'll use a helper function that will generate random numbers avoiding a list that we specify.
+
+We're going to call out out to JS to generate the random number.  First add the `#[macro_use]` annotation to the `extern crate stdweb` line in `lib.rs`.  Now, this is going to be our second helper function and I don't want to clutter up `lib.rs` too much, so lets create a file called `src/util.rs`:
+
+```rust
+use stdweb::unstable::TryInto;
+
+pub fn js_rand(bottom: u8, top: u8) -> u8 {
+  let rand = js! { return Math.random(); };
+  let base: f64 = rand.try_into().unwrap();
+  (base * top as f64).floor() as u8 + bottom
+}
+
+pub fn gen_range_in_range_avoiding(bottom: u8, top: u8, avoid: Vec<u8>) -> u8 {
+  let mut ret = avoid[0];
+  while avoid.contains(&ret) {
+    ret = js_rand(bottom, top);
+  }
+  ret
+}
+```
+
+The `js_rand` function wraps up our interop so we deal with Rust types as much as we can - we only need JS for the entropy. The helper `gen_range_avoiding` will give us back a `u8` that doesn't appear in `avoid`.
+
+
+
+We can also move `room_exits` from `lib.rs` into this file and mark it `pub`.  Don't forget to add it to the top of `lib.rs`:
+
+```rust
+mod components;
+mod util;
+
+use self::{
+  components::{controls::Controls, messages::Messages, stats::Stats},
+  util::*,
+};
+```
+
+To make this utility easier to use, let's give `Model` a method for it in `lib.rs`, along with a `configure_cave()` method to place all of our sadistic traps:
+
+```rust
+impl Model {
+  fn configure_cave(&mut self) {
+    self.messages.push(
+      "You've entered a clammy, dark cave, armed with 5 arrows.  You are very cold.".to_string(),
+    );
+    self.wumpus = js_rand(1, 20);
+    self.bats[0] = self.get_empty_room();
+    self.bats[1] = self.get_empty_room();
+    self.pits[0] = self.get_empty_room();
+    self.pits[1] = self.get_empty_room();
+  }
+
+  fn get_empty_room(&self) -> u8 {
+    gen_range_avoiding(0, 20, vec![self.current_room, self.wumpus, self.bats[0], self.bats[1], self.pits[0], self.pits[1]])
+  }
+}
+```
+
+With all this danger lurking around every corner, we should give the player a few warnings as they're stepping around.
+
+Let's add another method to `Model` to sniff around our surroundings:
+
+```rust
+```

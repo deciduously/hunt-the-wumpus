@@ -1,45 +1,44 @@
+#[macro_use]
 extern crate stdweb;
 #[macro_use]
 extern crate yew;
 
 mod components;
+mod util;
 
-use self::components::{controls::Controls, messages::Messages, stats::Stats};
+use self::{
+  components::{controls::Controls, messages::Messages, stats::Stats},
+  util::*,
+};
 
-use yew::prelude::{Component, ComponentLink, Html, Renderable, ShouldRender};
-
-/// given a number, return the exits
-fn room_exits(id: u8) -> Option<[u8; 3]> {
-  match id {
-    1 => Some([2, 5, 8]),
-    2 => Some([1, 3, 10]),
-    3 => Some([2, 4, 12]),
-    4 => Some([3, 5, 14]),
-    5 => Some([1, 4, 6]),
-    6 => Some([5, 7, 15]),
-    7 => Some([6, 8, 17]),
-    8 => Some([1, 7, 11]),
-    9 => Some([10, 12, 19]),
-    10 => Some([2, 9, 11]),
-    11 => Some([8, 10, 20]),
-    12 => Some([3, 9, 13]),
-    13 => Some([12, 14, 18]),
-    14 => Some([4, 13, 15]),
-    15 => Some([6, 14, 16]),
-    16 => Some([15, 17, 18]),
-    17 => Some([7, 16, 20]),
-    18 => Some([13, 16, 19]),
-    19 => Some([9, 18, 20]),
-    20 => Some([11, 17, 19]),
-    _ => None,
-  }
-}
+use yew::prelude::*;
 
 pub struct Model {
   arrows: u8,
   current_room: u8,
   messages: Vec<String>,
+  wumpus: u8,
+  bats: [u8; 2],
+  pits: [u8; 2],
 }
+
+impl Model {
+  fn configure_cave(&mut self) {
+    self.messages.push(
+      "You've entered a clammy, dark cave, armed with 5 arrows.  You are very cold.".to_string(),
+    );
+    self.wumpus = js_rand(1, 20);
+    self.bats[0] = self.get_empty_room();
+    self.bats[1] = self.get_empty_room();
+    self.pits[0] = self.get_empty_room();
+    self.pits[1] = self.get_empty_room();
+  }
+  
+  fn get_empty_room(&self) -> u8 {
+    gen_range_avoiding(0, 20, vec![self.current_room, self.wumpus, self.bats[0], self.bats[1], self.pits[0], self.pits[1]])
+  }
+}
+
 
 #[derive(Debug, Clone)]
 pub enum Msg {
@@ -55,10 +54,11 @@ impl Component for Model {
       arrows: 5,
       current_room: 1,
       messages: Vec::new(),
+      wumpus: 0,
+      bats: [0, 0],
+      pits: [0, 0],
     };
-    ret.messages.push(
-      "You've entered a clammy, dark cave, armed with 5 arrows.  You are very cold.".to_string(),
-    );
+    ret.configure_cave();
     ret
   }
 
