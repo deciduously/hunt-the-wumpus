@@ -10,9 +10,9 @@ Will we do it anyway?  **HELL YES!**.
 
 Rust has some great tooling popping up making this compilation pipeline relatively painless.  Yew with `cargo-web` like we use is only one of already several ways to go about it.  If you like what you find here I'd recommend the [RustWasm book](https://rustwasm.github.io/book/introduction.html) next.  It walks you through building a Game of Life `<canvas>` application without using any fancy frameworks or tools - from there you can pick and choose what you need on top of it.  You get to decide how low or high level you want to get with it.  Also be sure to check out [draco](https://github.com/utkarshkukreti/draco), an alternative client-side Rust->Wasm framework.
 
-This is a beginner-level tutorial - though it's helpful to be familiar with reading Rust.
+This is a beginner-level tutorial - it's helpful to be familiar with reading Rust but there's nothing too fancy going on here.  Comfort in any imperative language should be sufficient.
 
-I've split this into three parts.  Part 1 is pretty quick and is only concerned with the setup - it's useful on its own for starting your own blank project.  Parts 2 and 3 are much longer and go together.  Part 2 sets up our basic UI and mechanism for moving around the cave and Part 3 discusses the game logic.
+I've split this into three parts.  Part 1 is desgined to stand alone as a useful guide for starting your own blank project.  It's pretty quick and is only concerned with the setup - no wumpus hunting yet, just replace the filler text with stuff appropriate for your app.  Parts 2 and 3 are much longer and go together.  Part 2 sets up our basic UI and mechanism for moving around the cave and Part 3 discusses the game logic.
 
 ## Setup
 
@@ -340,7 +340,7 @@ Unlike our top-level component, this one accepts some props - we're going to pas
 
 Also of note - we *must* provide a `Default` impl for our `Props`.  I'm just setting it to `[0, 0, 0]`.
 
-Let's position it within our larger app.  First, we have to organize our component module:
+Let's position it within our app.  First, we have to organize our component module:
 
 ```
 $ echo 'pub mod controls;' > src/components/mod.rs
@@ -617,12 +617,12 @@ fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
 }
 ```
 
-Now we can dynamically create buttons to generate our `HuntMsg`.  We already have the room targets coming in to the component - we just need a way to create a different button for each.  We can abstract this logic out with a local closure in our `view` function:
+Now we can dynamically create buttons to generate our `crate::Msg`.  We already have the room targets coming in to the component - we just need a way to create a different button for each.  We can abstract this logic out with a local closure in our `view` function:
 
 ```rust
 impl Renderable<Controls> for Controls {
     fn view(&self) -> Html<Self> {
-        let view_button = |target: &u8| {
+        let move_button = |target: &u8| {
             use crate::Msg::*;
             let t = *target;
             html! {
@@ -634,7 +634,7 @@ impl Renderable<Controls> for Controls {
         html! {
             <div class=("container", "container-controls"),>
                 <div class="title",>{&self.title}</div>
-                <div class="exits",>{ for self.exits.iter().map(view_button) }</div>
+                <div class="exits",>{ for self.exits.iter().map(move_button) }</div>
             </div>
         }
     }
@@ -865,13 +865,13 @@ We'll also log each move:
 
 **SCREENSHOT**
 
-Nifty!  Here's a **tagged commit**.  Join me in Part 3 to make a game out of this dodecacave.
+Nifty!  Our cave isn't terribly interesting though.  There's some low-hanging fruit, here - there's gotta be a wumpus to hunt!
+
+Join me in Part 3 to make a game out of this treacherous dodecacave.
 
 **PART 3**
 *********************************************************************************************************************************************************************************************************************************************************************************
 *********************************************************************************************************************************************************************************************************************************************************************************
-
-Our cave isn't terribly interesting.  There's some low-hanging fruit, here - there's gotta be a wumpus to hunt!
 
 Open up `src/lib.rs` and add one to our `Model`:
 
@@ -914,14 +914,23 @@ pub struct Model {
   bats: [u8; 2],
   pits: [u8; 2],
 }
-let mut ret = Model {
-  arrows: 5,
-  current_room: 1,
-  messages: Vec::new(),
-  wumpus: 0,
-  bats: [0, 0],
-  pits: [0, 0],
-};
+```
+
+Let's go ahead and implement `Default` for `Model` with some zeros for everything that we can configure later:
+
+```rust
+impl Default for Model {
+  fn default() -> Self {
+    Self {
+      arrows: 5,
+      current_room: 1,
+      messages: Vec::new(),
+      wumpus: 0,
+      bats: [0, 0],
+      pits: [0, 0],
+    }
+  }
+}
 ```
 
 To place the horribleness, we'll use a helper function that will generate random numbers avoiding a list that we specify.
@@ -947,8 +956,6 @@ pub fn gen_range_in_range_avoiding(bottom: u8, top: u8, avoid: Vec<u8>) -> u8 {
 ```
 
 The `js_rand` function wraps up our interop so we deal with Rust types as much as we can - we only need JS for the entropy. The helper `gen_range_avoiding` will give us back a `u8` that doesn't appear in `avoid`.
-
-
 
 We can also move `room_exits` from `lib.rs` into this file and mark it `pub`.  Don't forget to add it to the top of `lib.rs`:
 
@@ -983,6 +990,16 @@ impl Model {
 }
 ```
 
+Now we can rewrite our `create` function:
+
+```rust
+fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+  let mut ret = Model::default();
+  ret.configure_cave();
+  ret
+}
+```
+
 With all this danger lurking around every corner, we should give the player a few warnings as they're stepping around.
 
 Let's add another method to `Model` to sniff around our surroundings.  If any of our adjacent rooms has a hazard, we'll alert the player with a spooky message:
@@ -992,11 +1009,17 @@ fn warning_messages(&mut self) {
   for adj in &room_exits(self.current_room).unwrap() {
     let t = *adj;
     if self.wumpus == t {
-      self.messages.push("You smell something horrific and rancid.".into());
+      self
+        .messages
+        .push("You smell something horrific and rancid.".into());
     } else if self.pits.contains(&t) {
-      self.messages.push("You feel a cold updraft from a nearby cavern.".into());
+      self
+        .messages
+        .push("You feel a cold updraft from a nearby cavern.".into());
     } else if self.bats.contains(&t) {
-      self.messages.push("You hear a faint but distinct flapping of wings.".into());
+      self
+        .messages
+        .push("You hear a faint but distinct flapping of wings.".into());
     }
   }
 }
@@ -1005,5 +1028,212 @@ fn warning_messages(&mut self) {
 We see the current room in the `Stats` component, so lets replace the `"Moved to <room>"` text with this warning:
 
 ```rust
+fn update(&mut self, msg: Self::Message) -> ShouldRender {
+  match msg {
+    Msg::SwitchRoom(target) => {
+      self.current_room = target;
+      self.warning_messages();
+      true
+    }
+  }
+}
+```
 
+Before we start dealing with larger level states, let's go ahead and abstract out our `Game` from our `Model`.  Create a new file called `src/game.rs`.  We're going to pull a lot of the logic we had defined on `Model` and put it here instead.
+
+```rust
+use crate::util::*;
+
+pub struct Game {
+  pub arrows: u8,
+  pub current_room: u8,
+  pub messages: Vec<String>,
+  wumpus: u8,
+  bats: [u8; 2],
+  pits: [u8; 2],
+}
+
+impl Game {
+  fn configure_cave(&mut self) {
+    self.messages.push(
+      "You've entered a clammy, dark cave, armed with 5 arrows.  You are very cold.".to_string(),
+    );
+    self.wumpus = js_rand(1, 20);
+    self.bats[0] = self.get_empty_room();
+    self.bats[1] = self.get_empty_room();
+    self.pits[0] = self.get_empty_room();
+    self.pits[1] = self.get_empty_room();
+  }
+
+  fn get_empty_room(&self) -> u8 {
+    gen_range_avoiding(
+      0,
+      20,
+      vec![
+        self.current_room,
+        self.wumpus,
+        self.bats[0],
+        self.bats[1],
+        self.pits[0],
+        self.pits[1],
+      ],
+    )
+  }
+
+  pub fn warning_messages(&mut self) {
+    for adj in &room_exits(self.current_room).unwrap() {
+      let t = *adj;
+      if self.wumpus == t {
+        self
+          .messages
+          .push("You smell something horrific and rancid.".into());
+      } else if self.pits.contains(&t) {
+        self
+          .messages
+          .push("You feel a cold updraft from a nearby cavern.".into());
+      } else if self.bats.contains(&t) {
+        self
+          .messages
+          .push("You hear a faint but distinct flapping of wings.".into());
+      }
+    }
+  }
+}
+
+impl Default for Game {
+  fn default() -> Self {
+    let mut ret = Self {
+      arrows: 5,
+      current_room: 1,
+      messages: Vec::new(),
+      wumpus: 0,
+      bats: [0, 0],
+      pits: [0, 0],
+    };
+    ret.configure_cave();
+    ret
+  }
+}
+
+```
+
+We also moved the "new game" setup into the `Default` implementation. Back over in `lib.rs`, we're going to make some changes.  First, we're going to define a few different types of `Model` we want to be able to render.  Change your `struct` to this `enum`:
+
+```rust
+pub enum Model {
+  GameOver(String),
+  NewGame,
+  Playing(Game),
+}
+```
+
+When the app starts, we want to open the `NewGame` state:
+
+```rust
+impl Default for Model {
+  fn default() -> Self {
+    Model::NewGame
+  }
+}
+
+impl Component for Model {
+  // ..
+  fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    Model::default()
+  }
+  // ..
+```
+
+We need a message to kick off a new game:
+
+```rust
+#[derive(Debug, Clone)]
+pub enum Msg {
+  StartGame,
+  SwitchRoom(u8),
+}
+```
+
+This will require a few changes to our `update` function too:
+
+```rust
+fn update(&mut self, msg: Self::Message) -> ShouldRender {
+  use self::Msg::*;
+  match msg {
+    SwitchRoom(target) => match self {
+      Model::Playing(game) => {
+        game.current_room = target;
+        game.warning_messages();
+      }
+      _ => unreachable!(),
+    },
+    StartGame => *self = Model::Playing(Game::default()),
+  }
+  true
+}
+```
+
+We've now got to make sure we're playing a game before switching rooms but we can send the `StartGame` message to reroll the gamestate at any time.
+
+Finally, we add a match arm for each game state in our `view`:
+
+```rust
+impl Renderable<Model> for Model {
+  fn view(&self) -> Html<Self> {
+    use self::Model::*;
+
+    match self {
+      GameOver(s) => html! {
+        <div class="hunt",>
+          <span class="over-message",>{s}</span>
+          <button onclick=|_| Msg::StartGame,>{"Play Again"}</button>
+        </div>
+      },
+      Playing(game) => html! {
+          <div class="hunt",>
+              <div class="header",>{"Hunt the Wumpus"}</div>
+              <div class="window",>
+                <Stats: arrows=game.arrows, current_room=game.current_room,/>
+                <Controls: exits=room_exits(game.current_room).unwrap(), onsignal=|msg| msg,/>
+              </div>
+              <Messages: messages=&game.messages,/>
+          </div>
+      },
+      NewGame => html! {
+        <div class="hunt",>
+          <button onclick=|_| Msg::StartGame,>{"Start Game"}</button>
+        </div>
+      },
+    }
+  }
+}
+```
+
+Over in `game.rs` lets flesh out everything that we want to check on a move end:
+
+```rust
+  pub fn move_effects(&mut self) -> Option<String> {
+    self.warning_messages();
+    if self.current_room == self.wumpus {
+      Some("You have been eaten slowly and painfully by the wumpus".into())
+    } else if self.pits.contains(&self.current_room) {
+      Some(
+        "You have fallen into a bottomless pit and must now wait to die, falling all the while"
+          .into(),
+      )
+    } else if self.bats.contains(&self.current_room) {
+      // Switch us to a random room
+      let current = self.current_room;
+      let next = self.get_empty_room();
+      self.messages.push(format!(
+        "A gigantic bat whisks you fropm room {} to room {} before you can even blink",
+        current, next
+      ));
+      self.current_room = next;
+      self.warning_messages();
+      None
+    } else {
+      None
+    }
+  }
 ```

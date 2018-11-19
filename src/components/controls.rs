@@ -57,7 +57,7 @@ impl Component for Controls {
 
 impl Renderable<Controls> for Controls {
     fn view(&self) -> Html<Self> {
-        let view_button = |target: &u8| {
+        let move_button = |target: &u8| {
             use crate::Msg::*;
             let t = *target;
             html! {
@@ -69,7 +69,7 @@ impl Renderable<Controls> for Controls {
         html! {
             <div class=("container", "container-controls"),>
                 <div class="title",>{&self.title}</div>
-                <div class="exits",>{ for self.exits.iter().map(view_button) }</div>
+                <div class="exits",>{ for self.exits.iter().map(move_button) }</div>
             </div>
         }
     }
