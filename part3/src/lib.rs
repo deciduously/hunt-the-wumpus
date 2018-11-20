@@ -80,7 +80,7 @@ impl Component for Model {
                   .messages
                   .push("You hear a deafening roar - you've disturbed the wumpus!".into());
                 let wumpus_exits = room_exits(game.wumpus).unwrap();
-                let rand_idx = js_rand(1, 3) - 1;
+                let rand_idx = js_rand(0, 2);
                 game.wumpus = wumpus_exits[rand_idx as usize];
                 if game.wumpus == game.current_room {
                   *self = Model::Waiting(

@@ -656,7 +656,7 @@ impl Renderable<Controls> for Controls {
 }
 ```
 
-We then map `view_button` over the exits in our state.  Another gotcha - you've got to dereference `target` outside of the `html!` macro: `let t = *target`.  If our type wasn't `Copy` like `u8`, we'd need to clone it here.
+We then map `move_button` over the exits in our state.  Another gotcha - you've got to dereference `target` outside of the `html!` macro: `let t = *target`.  If our type wasn't `Copy` like `u8`, we'd need to clone it here.
 
 Now we need to handle the message.  Let's fill in our `update`:
 
@@ -1359,7 +1359,7 @@ ShootArrow(target) => match self {
                   .messages
                   .push("You hear a deafening roar - you've disturbed the wumpus!".into());
                 let wumpus_exits = room_exits(game.wumpus).unwrap();
-                let rand_idx = js_rand(1, 3) - 1;
+                let rand_idx = js_rand(0, 2);
                 game.wumpus = wumpus_exits[rand_idx as usize];
                 if game.wumpus == game.current_room {
                   *self = Model::Waiting("You scared the wumpus right on top of you.  Good going, mincemeat".into());
@@ -1384,3 +1384,7 @@ let move_button = |target: &u8| {
   }
 };
 ```
+
+And that's the way the news goes!  Happy Wumpus huntin'.
+
+Please show me if you improve this app!  I want to see what you come up with.
