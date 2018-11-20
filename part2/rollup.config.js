@@ -1,6 +1,5 @@
 import babel from "rollup-plugin-babel"
 import uglify from "rollup-plugin-uglify"
-import wasm from "rollup-plugin-wasm"
 
 export default {
     input: './target/deploy/hunt.js',
