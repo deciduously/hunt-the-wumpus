@@ -1,0 +1,51 @@
+.hunt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+
+  .header {
+    flex: 0;
+    font-size: 36px;
+    font-weight: bold;
+    text-align: center;
+  }
+  
+  .window {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .container {
+      border: solid 1px #000;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      margin: 10px;
+      padding: 5px;
+  
+      >.title {
+          border-bottom: dashed 1px #000;
+          font-weight: bold;
+          text-align: center;
+      }
+
+      >.scroller {
+        overflow: auto;
+    }
+  }
+
+  .container-messages {
+    flex: 0 0 192px;
+    ul {
+      list-style-type: none;
+    }
+  }
+
+  .over-message {
+    font-size: 22px;
+    color: red;
+  }
+}
