@@ -9,9 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 stdweb = "0.4"
-
-[dependencies.yew]
-git = "https://github.com/DenisKolodin/yew"
+yew = "0.7"
 
 [lib]
 name = "hunt_the_wumpus"
